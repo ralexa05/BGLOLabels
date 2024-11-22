@@ -13,19 +13,32 @@ function epochUsToDateTime(cursor: number): string {
   return new Date(cursor / 1000).toISOString();
 }
 
-try {
-  logger.info('Trying to read cursor from cursor.txt...');
-  cursor = Number(fs.readFileSync('cursor.txt', 'utf8'));
-  logger.info(`Cursor found: ${cursor} (${epochUsToDateTime(cursor)})`);
-} catch (error) {
-  if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-    cursor = Math.floor(Date.now() * 1000);
-    logger.info(`Cursor not found in cursor.txt, setting cursor to: ${cursor} (${epochUsToDateTime(cursor)})`);
-    fs.writeFileSync('cursor.txt', cursor.toString(), 'utf8');
-  } else {
-    logger.error(error);
-    process.exit(1);
+function readInitialCursor() {
+  try {
+    logger.info('Trying to read cursor from cursor.txt...');
+    cursor = Number(fs.readFileSync('cursor.txt', 'utf8'));
+    logger.info(`Cursor found: ${cursor} (${epochUsToDateTime(cursor)})`);
+  } catch (error) {
+    if (error instanceof Error && error.code === 'ENOENT') {
+      cursor = Math.floor(Date.now() / 1000);
+      logger.info(`Cursor not found in cursor.txt, setting cursor to: ${cursor} (${epochUsToDateTime(cursor)})`);
+      fs.writeFileSync('cursor.txt', cursor.toString(), 'utf8');
+    } else {
+      logger.error(`Failed to read cursor: ${error}`);
+      process.exit(1);
+    }
   }
+}
+
+function updateCursorPeriodically() {
+  cursorUpdateInterval = setInterval(() => {
+    if (jetstream.cursor) {
+      logger.info(`Cursor updated to: ${jetstream.cursor} (${epochUsToDateTime(jetstream.cursor)})`);
+      fs.writeFile('cursor.txt', jetstream.cursor.toString(), err => {
+        if (err) logger.error(`Failed to write cursor: ${err}`);
+      });
+    }
+  }, CURSOR_UPDATE_INTERVAL);
 }
 
 const jetstream = new Jetstream({
@@ -35,17 +48,8 @@ const jetstream = new Jetstream({
 });
 
 jetstream.on('open', () => {
-  logger.info(
-    `Connected to Jetstream at ${FIREHOSE_URL} with cursor ${jetstream.cursor} (${epochUsToDateTime(jetstream.cursor!)})`,
-  );
-  cursorUpdateInterval = setInterval(() => {
-    if (jetstream.cursor) {
-      logger.info(`Cursor updated to: ${jetstream.cursor} (${epochUsToDateTime(jetstream.cursor)})`);
-      fs.writeFile('cursor.txt', jetstream.cursor.toString(), (err) => {
-        if (err) logger.error(err);
-      });
-    }
-  }, CURSOR_UPDATE_INTERVAL);
+  logger.info(`Connected to Jetstream at ${FIREHOSE_URL} with cursor ${jetstream.cursor} (${epochUsToDateTime(jetstream.cursor!)})`);
+  updateCursorPeriodically();
 });
 
 jetstream.on('close', () => {
@@ -53,12 +57,9 @@ jetstream.on('close', () => {
   logger.info('Jetstream connection closed.');
 });
 
-jetstream.on('error', (error) => {
-  logger.error(`Jetstream error: ${error.message}`);
-});
+jetstream.on('error', error => logger.error(`Jetstream error: ${error.message}`));
 
 jetstream.onCreate(WANTED_COLLECTION, (event: CommitCreateEvent<typeof WANTED_COLLECTION>) => {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (event.commit?.record?.subject?.uri?.includes(DID)) {
     label(event.did, event.commit.record.subject.uri.split('/').pop()!);
   }
@@ -68,7 +69,7 @@ const metricsServer = startMetricsServer(METRICS_PORT);
 
 labelerServer.app.listen({ port: PORT, host: HOST }, (error, address) => {
   if (error) {
-    logger.error('Error starting server: %s', error);
+    logger.error(`Error starting server: ${error}`);
   } else {
     logger.info(`Labeler server listening on ${address}`);
   }
@@ -77,14 +78,14 @@ labelerServer.app.listen({ port: PORT, host: HOST }, (error, address) => {
 jetstream.start();
 
 function shutdown() {
+  logger.info('Shutting down gracefully...');
   try {
-    logger.info('Shutting down gracefully...');
     fs.writeFileSync('cursor.txt', jetstream.cursor!.toString(), 'utf8');
     jetstream.close();
     labelerServer.stop();
     metricsServer.close();
   } catch (error) {
-    logger.error(`Error shutting down gracefully: ${error}`);
+    logger.error(`Failed during shutdown: ${error}`);
     process.exit(1);
   }
 }
