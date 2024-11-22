@@ -10,24 +10,27 @@ const loginCredentials: LoginCredentials = {
   password: BSKY_PASSWORD,
 };
 
-const labelDefinitions: ComAtprotoLabelDefs.LabelValueDefinition[] = [];
-
-for (const label of LABELS) {
-  const labelValueDefinition: ComAtprotoLabelDefs.LabelValueDefinition = {
+// Function to create label definitions from LABELS
+function createLabelDefinitions(): ComAtprotoLabelDefs.LabelValueDefinition[] {
+  return LABELS.map(label => ({
     identifier: label.identifier,
     severity: 'inform',
     blurs: 'none',
     defaultSetting: 'warn',
     adultOnly: false,
     locales: label.locales,
-  };
-
-  labelDefinitions.push(labelValueDefinition);
+  }));
 }
 
-try {
-  await setLabelerLabelDefinitions(loginCredentials, labelDefinitions);
-  logger.info('Label definitions set successfully.');
-} catch (error) {
-  logger.error(`Error setting label definitions: ${error}`);
+async function setLabelDefinitions() {
+  const labelDefinitions = createLabelDefinitions();
+  try {
+    await setLabelerLabelDefinitions(loginCredentials, labelDefinitions);
+    logger.info('Label definitions set successfully.');
+  } catch (error) {
+    logger.error(`Error setting label definitions: ${error instanceof Error ? error.message : error}`);
+  }
 }
+
+setLabelDefinitions();
+
