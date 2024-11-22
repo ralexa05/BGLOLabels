@@ -1,8 +1,10 @@
 # Labels 4 The Culture
 
-Use this repository to add your affiliation with a Black Greek Letter Organization (BGLO) to your Bluesky profile. Click the "Use this template" button above to create a new repository, and then follow the instructions below.
+Use this repository to showcase and promote cultural identities and contributions within the Bluesky social network. Click the "Use this template" button above to create a new repository, and then follow the instructions below.
 
-This repository includes a labeler for the "Divine Nine" BGLOs. You can edit the labels, descriptions, and other parameters in the `src/constants.ts` file.
+This repository is designed to facilitate the addition of culturally significant labels to Bluesky profiles, highlighting various roles and contributions in the Black community such as Black-owned businesses, content creators, artists, and more.
+
+You can edit the labels, descriptions, and other parameters in the `src/constants.ts` file to better represent or expand the cultural labels used.
 
 **This project requires familiarity with TypeScript, the command line and Linux. I hope to improve the onboarding experience in the future.**
 
