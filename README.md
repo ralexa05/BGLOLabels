@@ -1,4 +1,4 @@
-# Black Greek Letter Orgs Labeler
+# Labels 4 The Culture
 
 Use this repository to add your affiliation with a Black Greek Letter Organization (BGLO) to your Bluesky profile. Click the "Use this template" button above to create a new repository, and then follow the instructions below.
 
