@@ -8,21 +8,33 @@ collectDefaultMetrics({ register });
 
 const app = express();
 
-app.get('/metrics', (req, res) => {
-  register
-    .metrics()
-    .then((metrics) => {
-      res.set('Content-Type', register.contentType);
-      res.send(metrics);
-    })
-    .catch((ex: unknown) => {
-      logger.error(`Error serving metrics: ${(ex as Error).message}`);
-      res.status(500).end((ex as Error).message);
-    });
+// Middleware to set response headers for metrics
+app.use((req, res, next) => {
+  res.set('Content-Type', register.contentType);
+  next();
 });
 
-export const startMetricsServer = (port: number, host = '127.0.0.1') => {
-  return app.listen(port, host, () => {
+app.get('/metrics', async (req, res) => {
+  try {
+    const metrics = await register.metrics();
+    res.send(metrics);
+  } catch (ex) {
+    logger.error(`Error serving metrics: ${ex instanceof Error ? ex.message : 'Unknown error'}`);
+    res.status(500).send(ex instanceof Error ? ex.message : 'Unknown error');
+  }
+});
+
+export const startMetricsServer = (port: number, host: string = '127.0.0.1') => {
+  const server = app.listen(port, host, () => {
     logger.info(`Metrics server is listening on ${host}:${port}`);
   });
+
+  return {
+    server,
+    close: () => {
+      server.close(() => {
+        logger.info('Metrics server shutdown');
+      });
+    }
+  };
 };
