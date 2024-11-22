@@ -1,22 +1,16 @@
-# Bluesky Labeler Starter Kit
+# Black Greek Letter Orgs Labeler
 
-Use this repository to get started with your own Bluesky Labeler. Click the "Use this template" button above to create a new repository, and then follow the instructions below.
+Use this repository to add your affiliation with a Black Greek Letter Organization (BGLO) to your Bluesky profile. Click the "Use this template" button above to create a new repository, and then follow the instructions below.
 
-As an example, this repository includes a labeler for setting your favorite of the five elements (Earth, Fire, Air, Water, Love) to your profile. You can edit the labels, descriptions, and other parameters in the `src/constants.ts` file.
+This repository includes a labeler for the "Divine Nine" BGLOs. You can edit the labels, descriptions, and other parameters in the `src/constants.ts` file.
 
 **This project requires familiarity with TypeScript, the command line and Linux. I hope to improve the onboarding experience in the future.**
-
-## Support My Work
-
-If you find this project helpful, please consider supporting my work:
-
-[![Ko-fi](https://img.shields.io/badge/Ko--fi-F16061?style=for-the-badge&logo=ko-fi&logocolor=white)](https://ko-fi.com/aliceisjustplaying)
-[![GitHub Sponsors](https://img.shields.io/badge/sponsor-30363D?style=for-the-badge&logo=GitHub-Sponsors&logoColor=#white)](https://github.com/sponsors/aliceisjustplaying)
 
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/) v22.11.0 (LTS) for the runtime
 - [Bun](https://bun.sh/) (latest) for package management
+- A Bluesky account 
 
 ## Setup
 
