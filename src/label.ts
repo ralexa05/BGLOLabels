@@ -14,6 +14,11 @@ export const label = (did: string, rkey: string) => {
     logger.info(`${did} liked the labeler. Returning.`);
     return;
   }
+
+  processLabel(did, rkey);
+};
+
+function processLabel(did: string, rkey: string) {
   try {
     const labels = fetchCurrentLabels(did);
 
@@ -23,14 +28,14 @@ export const label = (did: string, rkey: string) => {
       addOrUpdateLabel(did, rkey, labels);
     }
   } catch (error) {
-    logger.error(`Error in \`label\` function: ${error}`);
+    logger.error(`Error in processLabel function: ${error}`);
   }
-};
+}
 
-function fetchCurrentLabels(did: string) {
+function fetchCurrentLabels(did: string): Set<string> {
   const query = labelerServer.db
-    .prepare<string[]>(`SELECT * FROM labels WHERE uri = ?`)
-    .all(did) as ComAtprotoLabelDefs.Label[];
+    .prepare<ComAtprotoLabelDefs.Label[]>(`SELECT * FROM labels WHERE uri = ?`)
+    .all(did);
 
   const labels = query.reduce((set, label) => {
     if (!label.neg) set.add(label.val);
@@ -38,11 +43,16 @@ function fetchCurrentLabels(did: string) {
     return set;
   }, new Set<string>());
 
+  logCurrentLabels(labels);
+  return labels;
+}
+
+function logCurrentLabels(labels: Set<string>) {
   if (labels.size > 0) {
     logger.info(`Current labels: ${Array.from(labels).join(', ')}`);
+  } else {
+    logger.info('No current labels found.');
   }
-
-  return labels;
 }
 
 function deleteAllLabels(did: string, labels: Set<string>) {
@@ -50,38 +60,36 @@ function deleteAllLabels(did: string, labels: Set<string>) {
 
   if (labelsToDelete.length === 0) {
     logger.info(`No labels to delete`);
-  } else {
-    logger.info(`Labels to delete: ${labelsToDelete.join(', ')}`);
-    try {
-      labelerServer.createLabels({ uri: did }, { negate: labelsToDelete });
-      logger.info('Successfully deleted all labels');
-    } catch (error) {
-      logger.error(`Error deleting all labels: ${error}`);
-    }
-  }
-}
-
-function addOrUpdateLabel(did: string, rkey: string, labels: Set<string>) {
-  const newLabel = LABELS.find((label) => label.rkey === rkey);
-  if (!newLabel) {
-    logger.warn(`New label not found: ${rkey}. Likely liked a post that's not one for labels.`);
     return;
   }
-  logger.info(`New label: ${newLabel.identifier}`);
 
-  if (labels.size >= LABEL_LIMIT) {
-    try {
-      labelerServer.createLabels({ uri: did }, { negate: Array.from(labels) });
-      logger.info(`Successfully negated existing labels: ${Array.from(labels).join(', ')}`);
-    } catch (error) {
-      logger.error(`Error negating existing labels: ${error}`);
-    }
+  logger.info(`Deleting labels: ${labelsToDelete.join(', ')}`);
+  labelerServer.createLabels({ uri: did }, { negate: labelsToDelete })
+    .then(() => logger.info('Successfully deleted all labels'))
+    .catch(error => logger.error(`Error deleting labels: ${error}`));
+}
+
+function addOrUpdateLabel(did: string, rkey: string, existingLabels: Set<string>) {
+  const newLabel = LABELS.find(label => label.rkey === rkey);
+
+  if (!newLabel) {
+    logger.warn(`Label not found for rkey: ${rkey}`);
+    return;
   }
 
-  try {
-    labelerServer.createLabel({ uri: did, val: newLabel.identifier });
-    logger.info(`Successfully labeled ${did} with ${newLabel.identifier}`);
-  } catch (error) {
-    logger.error(`Error adding new label: ${error}`);
+  if (existingLabels.size >= LABEL_LIMIT) {
+    logger.info(`Label limit reached, negating existing labels`);
+    negateLabels(did, existingLabels);
+    return;
   }
+
+  labelerServer.createLabel({ uri: did, val: newLabel.identifier })
+    .then(() => logger.info(`Labeled ${did} as '${newLabel.identifier}'`))
+    .catch(error => logger.error(`Error adding label: ${error}`));
+}
+
+function negateLabels(did: string, labels: Set<string>) {
+  labelerServer.createLabels({ uri: did }, { negate: Array.from(labels) })
+    .then(() => logger.info(`Negated labels for ${did}`))
+    .catch(error => logger.error(`Error negating labels: ${error}`));
 }
